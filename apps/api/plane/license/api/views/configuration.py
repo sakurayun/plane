@@ -3,6 +3,7 @@
 # See the LICENSE file for details.
 
 # Python imports
+import os
 from smtplib import (
     SMTPAuthenticationError,
     SMTPConnectError,
@@ -10,6 +11,9 @@ from smtplib import (
     SMTPSenderRefused,
     SMTPServerDisconnected,
 )
+
+# Third party imports
+import requests
 
 # Django imports
 from django.core.mail import BadHeaderError, EmailMultiAlternatives, get_connection
@@ -26,7 +30,10 @@ from plane.license.models import InstanceConfiguration
 from plane.license.api.serializers import InstanceConfigurationSerializer
 from plane.license.utils.encryption import encrypt_data
 from plane.utils.cache import cache_response, invalidate_cache
-from plane.license.utils.instance_value import get_email_configuration
+from plane.license.utils.instance_value import (
+    get_configuration_value,
+    get_email_configuration,
+)
 
 
 class InstanceConfigurationEndpoint(BaseAPIView):
@@ -57,6 +64,74 @@ class InstanceConfigurationEndpoint(BaseAPIView):
 
         serializer = InstanceConfigurationSerializer(configurations, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class InstanceLLMModelsEndpoint(BaseAPIView):
+    permission_classes = [InstanceAdminPermission]
+
+    def post(self, request):
+        api_key = (request.data.get("api_key") or "").strip() or None
+        base_url = (request.data.get("base_url") or "").strip() or None
+
+        # Fall back to the saved instance configuration for values not
+        # provided in the request
+        if not api_key or not base_url:
+            saved_api_key, saved_base_url = get_configuration_value(
+                [
+                    {
+                        "key": "LLM_API_KEY",
+                        "default": os.environ.get("LLM_API_KEY", None),
+                    },
+                    {
+                        "key": "LLM_API_BASE_URL",
+                        "default": os.environ.get("LLM_API_BASE_URL", ""),
+                    },
+                ]
+            )
+            api_key = api_key or saved_api_key
+            base_url = base_url or (saved_base_url or "").strip() or None
+
+        if not api_key:
+            return Response(
+                {"error": "API key is required to fetch the model list"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        base_url = (base_url or "https://api.openai.com/v1").rstrip("/")
+
+        try:
+            resp = requests.get(
+                f"{base_url}/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=15,
+            )
+        except requests.RequestException:
+            return Response(
+                {"error": "Could not connect to the LLM API. Please check the base URL."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if resp.status_code == 401:
+            return Response(
+                {"error": "Invalid API key for the configured LLM API"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if resp.status_code != 200:
+            return Response(
+                {"error": f"LLM API responded with status {resp.status_code}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            payload = resp.json()
+            models = sorted({model.get("id") for model in payload.get("data", []) if model.get("id")})
+        except (ValueError, AttributeError):
+            return Response(
+                {"error": "The LLM API returned an unexpected response format"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({"models": models}, status=status.HTTP_200_OK)
 
 
 class DisableEmailFeatureEndpoint(BaseAPIView):

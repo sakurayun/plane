@@ -130,6 +130,23 @@ export class InstanceService extends APIService {
   }
 
   /**
+   * Fetches the list of available LLM models from the configured
+   * OpenAI-compatible API (GET {base_url}/models)
+   * @param {Object} data Optional overrides for the saved configuration
+   * @param {string} [data.api_key] API key to authenticate with
+   * @param {string} [data.base_url] Base URL of the OpenAI-compatible API
+   * @returns {Promise<{ models: string[] }>} Promise resolving to the model list
+   * @throws {Error} If the API request fails
+   */
+  async fetchLLMModels(data: { api_key?: string; base_url?: string }): Promise<{ models: string[] }> {
+    return this.post("/api/instances/configurations/llm-models/", data)
+      .then((response) => response?.data)
+      .catch((error) => {
+        throw error?.response?.data;
+      });
+  }
+
+  /**
    * Disables the email configuration
    * @returns {Promise<void>} Promise resolving to void
    * @throws {Error} If the API request fails

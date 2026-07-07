@@ -4,11 +4,14 @@
  * See the LICENSE file for details.
  */
 
-import { useForm } from "react-hook-form";
-import { Lightbulb } from "lucide-react";
+import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { Lightbulb, RefreshCw } from "lucide-react";
 import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
+import { InstanceService } from "@plane/services";
 import type { IFormattedInstanceConfiguration, TInstanceAIConfigurationKeys } from "@plane/types";
+import { CustomSelect, Input } from "@plane/ui";
 // components
 import type { TControllerInputFormField } from "@/components/common/controller-input";
 import { ControllerInput } from "@/components/common/controller-input";
@@ -21,42 +24,42 @@ type IInstanceAIForm = {
 
 type AIFormValues = Record<TInstanceAIConfigurationKeys, string>;
 
+const instanceService = new InstanceService();
+
 export function InstanceAIForm(props: IInstanceAIForm) {
   const { config } = props;
   // store
   const { updateInstanceConfigurations } = useInstance();
+  // states
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [isFetchingModels, setIsFetchingModels] = useState(false);
   // form data
   const {
     handleSubmit,
     control,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<AIFormValues>({
     defaultValues: {
-      LLM_API_KEY: config["LLM_API_KEY"],
-      LLM_MODEL: config["LLM_MODEL"],
+      LLM_API_BASE_URL: config["LLM_API_BASE_URL"] ?? "",
+      LLM_API_KEY: config["LLM_API_KEY"] ?? "",
+      LLM_MODEL: config["LLM_MODEL"] ?? "",
     },
   });
 
   const aiFormFields: TControllerInputFormField[] = [
     {
-      key: "LLM_MODEL",
+      key: "LLM_API_BASE_URL",
       type: "text",
-      label: "LLM Model",
+      label: "API base URL",
       description: (
         <>
-          Choose an OpenAI engine.{" "}
-          <a
-            href="https://platform.openai.com/docs/models/overview"
-            target="_blank"
-            className="text-accent-primary hover:underline"
-            rel="noreferrer"
-          >
-            Learn more
-          </a>
+          Base URL of an OpenAI-compatible API. Leave empty to use the official OpenAI API
+          (https://api.openai.com/v1).
         </>
       ),
-      placeholder: "gpt-4o-mini",
-      error: Boolean(errors.LLM_MODEL),
+      placeholder: "https://api.openai.com/v1",
+      error: Boolean(errors.LLM_API_BASE_URL),
       required: false,
     },
     {
@@ -82,6 +85,41 @@ export function InstanceAIForm(props: IInstanceAIForm) {
     },
   ];
 
+  const handleFetchModels = async () => {
+    const formValues = getValues();
+    setIsFetchingModels(true);
+    await instanceService
+      .fetchLLMModels({
+        api_key: formValues.LLM_API_KEY,
+        base_url: formValues.LLM_API_BASE_URL,
+      })
+      .then((response) => {
+        const models = response?.models ?? [];
+        setAvailableModels(models);
+        if (models.length === 0) {
+          setToast({
+            type: TOAST_TYPE.WARNING,
+            title: "No models found",
+            message: "The API returned an empty model list.",
+          });
+        } else {
+          setToast({
+            type: TOAST_TYPE.SUCCESS,
+            title: "Success",
+            message: `Fetched ${models.length} models.`,
+          });
+        }
+      })
+      .catch((err) => {
+        setToast({
+          type: TOAST_TYPE.ERROR,
+          title: "Failed to fetch models",
+          message: err?.error ?? "Please check the API base URL and API key.",
+        });
+      })
+      .finally(() => setIsFetchingModels(false));
+  };
+
   const onSubmit = async (formData: AIFormValues) => {
     const payload: Partial<AIFormValues> = { ...formData };
 
@@ -101,7 +139,9 @@ export function InstanceAIForm(props: IInstanceAIForm) {
       <div className="space-y-3">
         <div>
           <div className="pb-1 text-18 font-medium text-primary">OpenAI</div>
-          <div className="text-13 font-regular text-tertiary">If you use ChatGPT, this is for you.</div>
+          <div className="text-13 font-regular text-tertiary">
+            Works with the official OpenAI API and any OpenAI-compatible API.
+          </div>
         </div>
         <div className="grid-col grid w-full grid-cols-1 items-center justify-between gap-x-12 gap-y-8 lg:grid-cols-3">
           {aiFormFields.map((field) => (
@@ -117,6 +157,61 @@ export function InstanceAIForm(props: IInstanceAIForm) {
               required={field.required}
             />
           ))}
+          <div className="flex flex-col gap-1">
+            <h4 className="text-13 text-tertiary">LLM Model</h4>
+            <div className="flex items-center gap-2">
+              <div className="grow">
+                <Controller
+                  control={control}
+                  name="LLM_MODEL"
+                  render={({ field: { value, onChange, ref } }) =>
+                    availableModels.length > 0 ? (
+                      <CustomSelect
+                        value={value}
+                        label={value || "Select a model"}
+                        onChange={onChange}
+                        buttonClassName="rounded-md border-subtle"
+                        optionsClassName="max-h-60 overflow-y-auto"
+                        input
+                      >
+                        {availableModels.map((model) => (
+                          <CustomSelect.Option key={model} value={model} className="w-full">
+                            {model}
+                          </CustomSelect.Option>
+                        ))}
+                      </CustomSelect>
+                    ) : (
+                      <Input
+                        id="LLM_MODEL"
+                        name="LLM_MODEL"
+                        type="text"
+                        value={value}
+                        onChange={onChange}
+                        ref={ref}
+                        hasError={Boolean(errors.LLM_MODEL)}
+                        placeholder="gpt-4o-mini"
+                        className="w-full rounded-md font-medium"
+                      />
+                    )
+                  }
+                />
+              </div>
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={handleFetchModels}
+                loading={isFetchingModels}
+                disabled={isFetchingModels}
+              >
+                <RefreshCw className="size-3.5" />
+                {isFetchingModels ? "Fetching" : "Fetch models"}
+              </Button>
+            </div>
+            <p className="pt-0.5 text-11 text-tertiary">
+              Type a model name, or click &quot;Fetch models&quot; to pick one from the API&apos;s /models list using
+              the values above.
+            </p>
+          </div>
         </div>
       </div>
 
