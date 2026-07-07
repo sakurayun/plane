@@ -45,6 +45,10 @@ export const PROFILE_SETTINGS: Record<
     key: "notifications",
     i18n_label: "profile.actions.notifications",
   },
+  "linked-accounts": {
+    key: "linked-accounts",
+    i18n_label: "profile.actions.linked_accounts",
+  },
   "api-tokens": {
     key: "api-tokens",
     i18n_label: "profile.actions.api-tokens",
@@ -62,6 +66,7 @@ export const GROUPED_PROFILE_SETTINGS: Record<
     PROFILE_SETTINGS["preferences"],
     PROFILE_SETTINGS["notifications"],
     PROFILE_SETTINGS["security"],
+    PROFILE_SETTINGS["linked-accounts"],
   ],
   [PROFILE_SETTINGS_CATEGORY.DEVELOPER]: [PROFILE_SETTINGS["api-tokens"]],
 };

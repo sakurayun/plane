@@ -9,6 +9,7 @@ import { API_BASE_URL } from "@plane/constants";
 import type {
   TIssue,
   IUser,
+  IUserAccount,
   IUserActivityResponse,
   IInstanceAdminStatus,
   IUserProfileData,
@@ -76,8 +77,16 @@ export class UserService extends APIService {
       });
   }
 
-  async getCurrentUserAccounts(): Promise<any> {
+  async getCurrentUserAccounts(): Promise<IUserAccount[]> {
     return this.get("/api/users/me/accounts/")
+      .then((response) => response?.data)
+      .catch((error) => {
+        throw error?.response;
+      });
+  }
+
+  async deleteUserAccount(accountId: string): Promise<void> {
+    return this.delete(`/api/users/me/accounts/${accountId}/`)
       .then((response) => response?.data)
       .catch((error) => {
         throw error?.response;

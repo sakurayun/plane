@@ -53,8 +53,10 @@ export interface IUser extends IUserLite {
 }
 
 export interface IUserAccount {
+  id: string;
   provider_account_id: string;
   provider: string;
+  last_connected_at: string;
   created_at: Date;
   updated_at: Date;
 }

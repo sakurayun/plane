@@ -17,6 +17,7 @@ from plane.authentication.utils.redirection_path import get_redirection_path
 from plane.authentication.utils.user_auth_workflow import post_user_auth_workflow
 from plane.license.models import Instance
 from plane.authentication.utils.host import base_host
+from plane.authentication.utils.connect_account import handle_connect_callback
 from plane.authentication.adapter.error import (
     AuthenticationException,
     AUTHENTICATION_ERROR_CODES,
@@ -27,6 +28,9 @@ from plane.utils.path_validator import get_safe_redirect_url
 class GoogleOauthInitiateEndpoint(View):
     def get(self, request):
         request.session["host"] = base_host(request=request, is_app=True)
+        # Explicit account-connect mode for already signed-in users
+        if request.GET.get("connect") == "1" and request.user.is_authenticated:
+            request.session["connect_user_id"] = str(request.user.id)
         next_path = request.GET.get("next_path")
         if next_path:
             request.session["next_path"] = str(next_path)
@@ -63,6 +67,7 @@ class GoogleCallbackEndpoint(View):
         code = request.GET.get("code")
         state = request.GET.get("state")
         next_path = request.session.get("next_path")
+        connect_user_id = request.session.pop("connect_user_id", None)
 
         if state != request.session.get("state", ""):
             exc = AuthenticationException(
@@ -86,6 +91,14 @@ class GoogleCallbackEndpoint(View):
             return HttpResponseRedirect(url)
         try:
             provider = GoogleOAuthProvider(request=request, code=code, callback=post_user_auth_workflow)
+            if connect_user_id:
+                return handle_connect_callback(
+                    request=request,
+                    provider=provider,
+                    connect_user_id=connect_user_id,
+                    base_host=base_host(request=request, is_app=True),
+                    next_path=next_path,
+                )
             user = provider.authenticate()
             # Login the user and record his device info
             user_login(request=request, user=user, is_app=True)

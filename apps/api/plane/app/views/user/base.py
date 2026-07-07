@@ -3,6 +3,7 @@
 # See the LICENSE file for details.
 
 # Python imports
+import os
 import uuid
 import json
 import logging
@@ -409,6 +410,34 @@ class AccountEndpoint(BaseAPIView):
 
     def delete(self, request, pk):
         account = Account.objects.get(pk=pk, user=request.user)
+
+        # Prevent lockout: after disconnecting, the user must retain at
+        # least one way to sign in (a real password, magic code, or
+        # another connected social account)
+        from plane.license.utils.instance_value import get_configuration_value
+
+        (EMAIL_HOST, ENABLE_MAGIC_LINK_LOGIN) = get_configuration_value(
+            [
+                {"key": "EMAIL_HOST", "default": os.environ.get("EMAIL_HOST", "")},
+                {
+                    "key": "ENABLE_MAGIC_LINK_LOGIN",
+                    "default": os.environ.get("ENABLE_MAGIC_LINK_LOGIN", "0"),
+                },
+            ]
+        )
+        has_password = not request.user.is_password_autoset
+        has_magic_login = bool(EMAIL_HOST) and ENABLE_MAGIC_LINK_LOGIN == "1"
+        other_accounts = Account.objects.filter(user=request.user).exclude(pk=pk).count()
+
+        if not (has_password or has_magic_login or other_accounts > 0):
+            return Response(
+                {
+                    "error": "This social account is your only way to sign in. "
+                    "Set a password first, then disconnect it."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         account.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 

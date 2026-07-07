@@ -208,5 +208,13 @@ class ProfileSerializer(BaseSerializer):
 class AccountSerializer(BaseSerializer):
     class Meta:
         model = Account
-        fields = "__all__"
-        read_only_fields = ["user"]
+        # Explicit whitelist - never expose access/refresh/id tokens
+        fields = [
+            "id",
+            "provider",
+            "provider_account_id",
+            "last_connected_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields

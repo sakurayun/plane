@@ -99,6 +99,7 @@
     "actions": {
       "profile": "個人資料",
       "security": "安全性",
+      "linked_accounts": "社交登入器",
       "activity": "活動",
       "preferences": "偏好設定",
       "notifications": "通知",

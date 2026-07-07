@@ -99,6 +99,7 @@
     "actions": {
       "profile": "Profile",
       "security": "Security",
+      "linked_accounts": "Social sign-ins",
       "activity": "Activity",
       "preferences": "Preferences",
       "notifications": "Notifications",
