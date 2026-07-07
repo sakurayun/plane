@@ -37,7 +37,7 @@ export const SpreadsheetLabelColumn = observer(function SpreadsheetLabelColumn(p
         className="h-full w-full"
         buttonClassName="px-page-x w-full h-full group-[.selected-issue-row]:bg-accent-primary/5 group-[.selected-issue-row]:hover:bg-accent-primary/10 rounded-none"
         hideDropdownArrow
-        maxRender={1}
+        maxRender={issue.label_ids?.length || 1}
         disabled={disabled}
         placeholderText="Select labels"
         onClose={onClose}

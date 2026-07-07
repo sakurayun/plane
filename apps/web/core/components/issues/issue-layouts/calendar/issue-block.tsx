@@ -17,8 +17,8 @@ import { cn, generateWorkItemLink } from "@plane/utils";
 // hooks
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useIssues } from "@/hooks/store/use-issues";
+import { useLabel } from "@/hooks/store/use-label";
 import { useProject } from "@/hooks/store/use-project";
-import { useProjectState } from "@/hooks/store/use-project-state";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import useIssuePeekOverviewRedirection from "@/hooks/use-issue-peek-overview-redirection";
 import { usePlatformOS } from "@/hooks/use-platform-os";
@@ -46,7 +46,7 @@ export const CalendarIssueBlock = observer(
     const menuActionRef = useRef<HTMLDivElement | null>(null);
     // hooks
     const { workspaceSlug } = useParams();
-    const { getProjectStates } = useProjectState();
+    const { getLabelById } = useLabel();
     const { getIsIssuePeeked } = useIssueDetail();
     const { handleRedirection } = useIssuePeekOverviewRedirection(isEpic);
     const { isMobile } = usePlatformOS();
@@ -54,7 +54,9 @@ export const CalendarIssueBlock = observer(
     const { issuesFilter } = useIssues(storeType);
     const { getProjectIdentifierById } = useProject();
 
-    const stateColor = getProjectStates(issue?.project_id)?.find((state) => state?.id == issue?.state_id)?.color || "";
+    // Left indicator bar: first label color, neutral #dcdcdc when unlabeled
+    const firstLabelId = issue?.label_ids?.[0];
+    const barColor = (firstLabelId ? getLabelById(firstLabelId)?.color : undefined) || "#dcdcdc";
     const projectIdentifier = getProjectIdentifierById(issue?.project_id);
 
     // handlers
@@ -122,7 +124,7 @@ export const CalendarIssueBlock = observer(
                     <span
                       className="h-full w-0.5 flex-shrink-0 rounded-sm"
                       style={{
-                        backgroundColor: stateColor,
+                        backgroundColor: barColor,
                       }}
                     />
                     {issue.project_id && (
