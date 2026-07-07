@@ -380,21 +380,11 @@ class IntakeIssueViewSet(BaseViewSet):
         issue_current_instance = None
         issue_requested_data = None
 
-        # When accepting an intake work item without an explicit target state,
-        # default it to the project's "需求" backlog state if one exists, so
-        # externally submitted items land in the requirements column
-        if str(request.data.get("status", "")) == str(IntakeIssueStatus.ACCEPTED.value) and (
-            not issue_data or not issue_data.get("state_id")
-        ):
-            requirement_state = State.objects.filter(
-                project_id=project_id,
-                name="需求",
-                group=StateGroup.BACKLOG.value,
-            ).first()
-            if requirement_state is not None:
-                if not issue_data:
-                    issue_data = {}
-                issue_data["state_id"] = str(requirement_state.id)
+        # Whether this request accepts the intake item without choosing a target
+        # state — used after save to default it to the "需求" backlog state
+        is_accept_without_state = str(request.data.get("status", "")) == str(
+            IntakeIssueStatus.ACCEPTED.value
+        ) and (not issue_data or not issue_data.get("state_id"))
 
         # Validate issue data if provided
         if bool(issue_data):
@@ -488,6 +478,21 @@ class IntakeIssueViewSet(BaseViewSet):
                 origin=base_host(request=request, is_app=True),
                 intake=str(intake_issue.id),
             )
+
+            # Move an accepted item out of triage into "需求" when the acceptor
+            # did not pick a target state (bypasses the triage-only serializer
+            # validation used above)
+            if is_accept_without_state:
+                requirement_state = State.objects.filter(
+                    project_id=project_id,
+                    name="需求",
+                    group=StateGroup.BACKLOG.value,
+                ).first()
+                if requirement_state is not None:
+                    accepted_issue = Issue.objects.filter(pk=pk, project_id=project_id).first()
+                    if accepted_issue is not None and str(accepted_issue.state_id) != str(requirement_state.id):
+                        accepted_issue.state = requirement_state
+                        accepted_issue.save(update_fields=["state", "updated_at"])
 
         # Fetch and return the updated intake issue
         intake_issue = (
