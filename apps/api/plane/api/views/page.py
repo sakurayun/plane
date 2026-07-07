@@ -178,10 +178,6 @@ class ProjectPageListCreateAPIEndpoint(BasePageAPIView):
                     project_id=self.kwargs.get("project_id")
                 ).values_list("page_id", flat=True)
             )
-            .filter(
-                project__project_projectmember__member=self.request.user,
-                project__project_projectmember__is_active=True,
-            )
             .filter(self.page_visibility_filter())
             .select_related("workspace", "owned_by")
             .order_by(self.request.GET.get("order_by", "-created_at"))
@@ -214,10 +210,6 @@ class ProjectPageDetailAPIEndpoint(BasePageAPIView):
                 pk__in=ProjectPage.objects.filter(
                     project_id=self.kwargs.get("project_id")
                 ).values_list("page_id", flat=True)
-            )
-            .filter(
-                project__project_projectmember__member=self.request.user,
-                project__project_projectmember__is_active=True,
             )
             .filter(self.page_visibility_filter())
             .select_related("workspace", "owned_by")
