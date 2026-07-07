@@ -16,8 +16,8 @@ import { SIDEBAR_WIDTH } from "@/components/gantt-chart/constants";
 // hooks
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useIssues } from "@/hooks/store/use-issues";
+import { useLabel } from "@/hooks/store/use-label";
 import { useProject } from "@/hooks/store/use-project";
-import { useProjectState } from "@/hooks/store/use-project-state";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import useIssuePeekOverviewRedirection from "@/hooks/use-issue-peek-overview-redirection";
 import { usePlatformOS } from "@/hooks/use-platform-os";
@@ -40,7 +40,7 @@ export const IssueGanttBlock = observer(function IssueGanttBlock(props: Props) {
   const { workspaceSlug: routerWorkspaceSlug } = useParams();
   const workspaceSlug = routerWorkspaceSlug?.toString();
   // store hooks
-  const { getProjectStates } = useProjectState();
+  const { getLabelById } = useLabel();
   const {
     issue: { getIssueById },
   } = useIssueDetail();
@@ -50,10 +50,18 @@ export const IssueGanttBlock = observer(function IssueGanttBlock(props: Props) {
 
   // derived values
   const issueDetails = getIssueById(issueId);
-  const stateDetails =
-    issueDetails && getProjectStates(issueDetails?.project_id)?.find((state) => state?.id == issueDetails?.state_id);
 
-  const { blockStyle } = getBlockViewDetails(issueDetails, stateDetails?.color ?? "");
+  // Timeline bar color: label color at 20% opacity when the work item has
+  // labels, otherwise a neutral #dcdcdc
+  const firstLabelId = issueDetails?.label_ids?.[0];
+  const firstLabel = firstLabelId ? getLabelById(firstLabelId) : null;
+  const barColor = firstLabel?.color
+    ? /^#[0-9a-fA-F]{6}$/.test(firstLabel.color)
+      ? `${firstLabel.color}33`
+      : firstLabel.color
+    : "#dcdcdc";
+
+  const { blockStyle } = getBlockViewDetails(issueDetails, barColor);
 
   const handleIssuePeekOverview = () => handleRedirection(workspaceSlug, issueDetails, isMobile);
 
@@ -70,7 +78,6 @@ export const IssueGanttBlock = observer(function IssueGanttBlock(props: Props) {
             style={blockStyle}
             onClick={handleIssuePeekOverview}
           >
-            <div className="absolute top-0 left-0 h-full w-full bg-surface-1/50" />
             <div
               className="sticky w-auto flex-1 truncate overflow-hidden px-2.5 py-1 text-13 text-primary"
               style={{ left: `${SIDEBAR_WIDTH}px` }}
