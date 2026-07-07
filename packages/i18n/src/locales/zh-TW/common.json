@@ -867,5 +867,24 @@
       "description": "將工作事項匯出為 JSON 檔案。",
       "short_description": "匯出為 JSON"
     }
+  },
+  "intake_submit": {
+    "button": "提交需求",
+    "title": "提交需求",
+    "subtitle": "你的提交將進入團隊收件匣等待審核。",
+    "name_label": "標題",
+    "name_placeholder": "你需要什麼？",
+    "name_required": "請填寫標題。",
+    "description_label": "描述",
+    "description_placeholder": "補充有助於理解的細節（選填）",
+    "priority_label": "緊急程度",
+    "labels_label": "標籤",
+    "submit": "提交",
+    "submitting": "提交中",
+    "success_title": "已提交",
+    "success_message": "你的需求已傳送給團隊審核。",
+    "error_message": "提交失敗，請重試。",
+    "allow_submission": "允許提交需求",
+    "allow_submission_description": "已登入的訪客可以向該專案的收件匣提交工作項。"
   }
 }

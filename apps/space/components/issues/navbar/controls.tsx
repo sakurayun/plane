@@ -4,16 +4,23 @@
  * See the LICENSE file for details.
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { observer } from "mobx-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Plus } from "lucide-react";
+// plane imports
+import { API_BASE_URL } from "@plane/constants";
+import { useTranslation } from "@plane/i18n";
+import { Button } from "@plane/propel/button";
 // components
+import { CreateIntakeIssueModal } from "@/components/issues/create-issue-modal";
 import { IssueFiltersDropdown } from "@/components/issues/filters";
 // helpers
 import { queryParamGenerator } from "@/helpers/query-param-generator";
 // hooks
 import { useIssueDetails } from "@/hooks/store/use-issue-details";
 import { useIssueFilter } from "@/hooks/store/use-issue-filter";
+import { useUser } from "@/hooks/store/use-user";
 import useIsInIframe from "@/hooks/use-is-in-iframe";
 // store
 import type { PublishStore } from "@/store/publish/publish.store";
@@ -31,9 +38,16 @@ export type NavbarControlsProps = {
 export const NavbarControls = observer(function NavbarControls(props: NavbarControlsProps) {
   // props
   const { publishSettings } = props;
+  // i18n
+  const { t } = useTranslation();
   // router
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  // state
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  // user
+  const { data: currentUser } = useUser();
   // query params
   const board = searchParams.get("board") || undefined;
   const labels = searchParams.get("labels") || undefined;
@@ -107,8 +121,38 @@ export const NavbarControls = observer(function NavbarControls(props: NavbarCont
 
   if (!anchor) return null;
 
+  const canCreateIssue = publishSettings.canCreateIssue;
+  const intakeId = publishSettings.intake;
+
+  const handleCreateClick = () => {
+    if (currentUser) {
+      setIsCreateModalOpen(true);
+    } else {
+      // send anonymous users through sign-in, returning to this board
+      window.location.assign(`${API_BASE_URL}/auth/oidc/?next_path=${encodeURIComponent(pathname)}`);
+    }
+  };
+
   return (
     <>
+      {canCreateIssue && intakeId && (
+        <CreateIntakeIssueModal
+          anchor={anchor}
+          intakeId={intakeId}
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+        />
+      )}
+
+      {/* submit requirement */}
+      {canCreateIssue && !isInIframe && (
+        <div className="shrink-0">
+          <Button variant="primary" size="sm" prependIcon={<Plus className="size-3.5" />} onClick={handleCreateClick}>
+            {t("intake_submit.button")}
+          </Button>
+        </div>
+      )}
+
       {/* issue views */}
       <div className="shrink-0">
         <IssuesLayoutSelection anchor={anchor} />

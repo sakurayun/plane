@@ -39,6 +39,22 @@ export class SitesIssueService extends APIService {
   }
 
   /**
+   * Submits a new work item into the board's intake (non-member submission).
+   * @param {string} anchor - The anchor identifier
+   * @param {string} intakeId - The intake identifier
+   * @param {object} data - { issue: { name, description_html, priority, label_ids } }
+   * @returns {Promise<any>} Promise resolving to the created issue
+   * @throws {Error} If the API request fails
+   */
+  async createIntakeIssue(anchor: string, intakeId: string, data: any): Promise<any> {
+    return this.post(`/api/public/anchor/${anchor}/intakes/${intakeId}/intake-issues/`, data)
+      .then((response) => response?.data)
+      .catch((error) => {
+        throw error?.response?.data;
+      });
+  }
+
+  /**
    * Retrieves details of a specific issue
    * @param {string} anchor - The anchor identifier
    * @param {string} issueID - The issue identifier

@@ -11,6 +11,7 @@ import { Controller, useForm } from "react-hook-form";
 
 // types
 import { SPACE_BASE_PATH, SPACE_BASE_URL } from "@plane/constants";
+import { useTranslation } from "@plane/i18n";
 import { Button } from "@plane/propel/button";
 import { GlobeIcon, NewTabIcon, CheckIcon } from "@plane/propel/icons";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
@@ -32,6 +33,7 @@ const defaultValues: Partial<TProjectPublishSettings> = {
   is_comments_enabled: false,
   is_reactions_enabled: false,
   is_votes_enabled: false,
+  is_intake_enabled: false,
   inbox: null,
   view_props: {
     list: true,
@@ -51,6 +53,8 @@ export const PublishProjectModal = observer(function PublishProjectModal(props: 
   const { isOpen, onClose, projectId } = props;
   // states
   const [isUnPublishing, setIsUnPublishing] = useState(false);
+  // i18n
+  const { t } = useTranslation();
   // router
   const { workspaceSlug } = useParams();
   // store hooks
@@ -147,6 +151,7 @@ export const PublishProjectModal = observer(function PublishProjectModal(props: 
       is_comments_enabled: formData.is_comments_enabled,
       is_reactions_enabled: formData.is_reactions_enabled,
       is_votes_enabled: formData.is_votes_enabled,
+      is_intake_enabled: formData.is_intake_enabled,
       view_props: formData.view_props,
     };
 
@@ -302,6 +307,19 @@ export const PublishProjectModal = observer(function PublishProjectModal(props: 
                 <Controller
                   control={control}
                   name="is_votes_enabled"
+                  render={({ field: { onChange, value } }) => (
+                    <ToggleSwitch value={!!value} onChange={onChange} size="sm" />
+                  )}
+                />
+              </div>
+              <div className="relative flex items-center justify-between gap-2">
+                <div className="flex flex-col">
+                  <div className="text-13">{t("intake_submit.allow_submission")}</div>
+                  <div className="text-11 text-tertiary">{t("intake_submit.allow_submission_description")}</div>
+                </div>
+                <Controller
+                  control={control}
+                  name="is_intake_enabled"
                   render={({ field: { onChange, value } }) => (
                     <ToggleSwitch value={!!value} onChange={onChange} size="sm" />
                   )}

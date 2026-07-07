@@ -24,6 +24,11 @@ export interface IIssueStore extends IBaseIssuesStore {
   ) => Promise<void>;
   fetchNextPublicIssues: (anchor: string, groupId?: string, subGroupId?: string) => Promise<void>;
   fetchPublicIssuesWithExistingPagination: (anchor: string, loadType?: TLoader) => Promise<void>;
+  createIntakeIssue: (
+    anchor: string,
+    intakeId: string,
+    data: { name: string; description_html: string; priority: string; label_ids: string[] }
+  ) => Promise<unknown>;
 }
 
 export class IssueStore extends BaseIssuesStore implements IIssueStore {
@@ -39,11 +44,24 @@ export class IssueStore extends BaseIssuesStore implements IIssueStore {
       fetchPublicIssues: action,
       fetchNextPublicIssues: action,
       fetchPublicIssuesWithExistingPagination: action,
+      createIntakeIssue: action,
     });
 
     this.rootStore = _rootStore;
     this.issueService = new SitesIssueService();
   }
+
+  /**
+   * @description submit a work item into the board's intake (non-member submission)
+   */
+  createIntakeIssue = async (
+    anchor: string,
+    intakeId: string,
+    data: { name: string; description_html: string; priority: string; label_ids: string[] }
+  ) => {
+    const response = await this.issueService.createIntakeIssue(anchor, intakeId, { issue: data });
+    return response;
+  };
 
   /**
    * @description fetch issues, states and labels

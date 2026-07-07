@@ -32,6 +32,8 @@ export type TPublishSettings = {
   is_comments_enabled: boolean;
   is_reactions_enabled: boolean;
   is_votes_enabled: boolean;
+  is_intake_enabled: boolean;
+  intake: string | undefined;
   project: string | undefined;
   project_details: TProjectDetails | undefined;
   updated_at: string | undefined;

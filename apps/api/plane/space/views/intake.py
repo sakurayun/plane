@@ -16,7 +16,19 @@ from rest_framework.response import Response
 
 # Module imports
 from .base import BaseViewSet
-from plane.db.models import IntakeIssue, Issue, IssueLink, FileAsset, DeployBoard, State, StateGroup
+from plane.db.models import (
+    IntakeIssue,
+    Issue,
+    IssueLink,
+    IssueLabel,
+    Label,
+    FileAsset,
+    DeployBoard,
+    ProjectMember,
+    ProjectPublicMember,
+    State,
+    StateGroup,
+)
 from plane.app.serializers import (
     IssueSerializer,
     IntakeIssueSerializer,
@@ -107,7 +119,7 @@ class IntakeIssuePublicViewSet(BaseViewSet):
 
     def create(self, request, anchor, intake_id):
         project_deploy_board = DeployBoard.objects.get(anchor=anchor, entity_name="project")
-        if project_deploy_board.intake is None:
+        if project_deploy_board.intake is None or not project_deploy_board.is_intake_enabled:
             return Response(
                 {"error": "Intake is not enabled for this Project Board"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -156,6 +168,38 @@ class IntakeIssuePublicViewSet(BaseViewSet):
             project_id=project_deploy_board.project_id,
             state_id=triage_state.id,
         )
+
+        # Attach labels (external submitters may only pick existing labels of
+        # this project; anything not belonging to the project is ignored)
+        label_ids = request.data.get("issue", {}).get("label_ids", [])
+        if isinstance(label_ids, list) and label_ids:
+            valid_label_ids = Label.objects.filter(
+                project_id=project_deploy_board.project_id, pk__in=label_ids
+            ).values_list("id", flat=True)
+            IssueLabel.objects.bulk_create(
+                [
+                    IssueLabel(
+                        issue=issue,
+                        label_id=label_id,
+                        project_id=project_deploy_board.project_id,
+                        workspace_id=project_deploy_board.workspace_id,
+                        created_by_id=request.user.id,
+                    )
+                    for label_id in valid_label_ids
+                ],
+                batch_size=10,
+                ignore_conflicts=True,
+            )
+
+        # Register the non-member submitter for workspace tracking
+        if not ProjectMember.objects.filter(
+            project_id=project_deploy_board.project_id,
+            member=request.user,
+            is_active=True,
+        ).exists():
+            _ = ProjectPublicMember.objects.get_or_create(
+                project_id=project_deploy_board.project_id, member=request.user
+            )
 
         # Create an Issue Activity
         issue_activity.delay(

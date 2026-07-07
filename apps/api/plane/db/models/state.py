@@ -30,6 +30,12 @@ DEFAULT_STATES = [
         "default": True,
     },
     {
+        "name": "需求",
+        "color": "#3B82F6",
+        "sequence": 20000,
+        "group": StateGroup.BACKLOG.value,
+    },
+    {
         "name": "Todo",
         "color": "#60646C",
         "sequence": 25000,

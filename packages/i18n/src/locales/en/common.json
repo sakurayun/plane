@@ -867,5 +867,24 @@
       "description": "Export work items to a JSON file.",
       "short_description": "Export as json"
     }
+  },
+  "intake_submit": {
+    "button": "Submit a requirement",
+    "title": "Submit a requirement",
+    "subtitle": "Your submission goes to the team's intake for review.",
+    "name_label": "Title",
+    "name_placeholder": "What do you need?",
+    "name_required": "A title is required.",
+    "description_label": "Description",
+    "description_placeholder": "Add any details that would help (optional)",
+    "priority_label": "Priority",
+    "labels_label": "Labels",
+    "submit": "Submit",
+    "submitting": "Submitting",
+    "success_title": "Submitted",
+    "success_message": "Your requirement has been sent to the team for review.",
+    "error_message": "Could not submit. Please try again.",
+    "allow_submission": "Allow requirement submissions",
+    "allow_submission_description": "Signed-in visitors can submit work items into this project's intake."
   }
 }

@@ -22,6 +22,7 @@ export interface IPublishStore extends TProjectPublishSettings {
   canComment: boolean;
   canReact: boolean;
   canVote: boolean;
+  canCreateIssue: boolean;
 }
 
 export class PublishStore implements IPublishStore {
@@ -41,6 +42,8 @@ export class PublishStore implements IPublishStore {
   updated_by: string | undefined;
   view_props: TProjectPublishViewProps | undefined;
   is_votes_enabled: boolean;
+  is_intake_enabled: boolean;
+  intake: string | undefined;
   workspace: string | undefined;
   workspace_detail: IWorkspaceLite | undefined;
 
@@ -63,6 +66,8 @@ export class PublishStore implements IPublishStore {
     this.updated_by = publishSettings.updated_by;
     this.view_props = publishSettings.view_props;
     this.is_votes_enabled = publishSettings.is_votes_enabled;
+    this.is_intake_enabled = publishSettings.is_intake_enabled;
+    this.intake = publishSettings.intake;
     this.workspace = publishSettings.workspace;
     this.workspace_detail = publishSettings.workspace_detail;
 
@@ -83,6 +88,8 @@ export class PublishStore implements IPublishStore {
       updated_by: observable.ref,
       view_props: observable,
       is_votes_enabled: observable.ref,
+      is_intake_enabled: observable.ref,
+      intake: observable.ref,
       workspace: observable.ref,
       workspace_detail: observable,
       // computed
@@ -90,6 +97,7 @@ export class PublishStore implements IPublishStore {
       canComment: computed,
       canReact: computed,
       canVote: computed,
+      canCreateIssue: computed,
     });
   }
 
@@ -119,5 +127,12 @@ export class PublishStore implements IPublishStore {
    */
   get canVote() {
     return !!this.is_votes_enabled;
+  }
+
+  /**
+   * @description returns whether non-members may submit work items
+   */
+  get canCreateIssue() {
+    return !!this.is_intake_enabled && !!this.intake;
   }
 }

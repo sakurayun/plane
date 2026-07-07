@@ -550,6 +550,7 @@ class DeployBoardViewSet(BaseViewSet):
         reactions = request.data.get("is_reactions_enabled", False)
         intake = request.data.get("intake", None)
         votes = request.data.get("is_votes_enabled", False)
+        is_intake_enabled = request.data.get("is_intake_enabled", False)
         views = request.data.get(
             "views",
             {
@@ -561,14 +562,28 @@ class DeployBoardViewSet(BaseViewSet):
             },
         )
 
+        # Allowing non-members to submit work items requires a linked intake;
+        # auto-provision the project's default intake when the toggle is on
+        if is_intake_enabled and not intake:
+            project_intake = Intake.objects.filter(project_id=project_id, is_default=True).first()
+            if project_intake is None:
+                project = Project.objects.get(pk=project_id, workspace__slug=slug)
+                project_intake = Intake.objects.create(
+                    name=f"{project.name} Intake",
+                    project_id=project_id,
+                    is_default=True,
+                )
+            intake = project_intake.id
+
         project_deploy_board, _ = DeployBoard.objects.get_or_create(
             entity_name="project", entity_identifier=project_id, project_id=project_id
         )
-        project_deploy_board.intake = intake
+        project_deploy_board.intake_id = intake
         project_deploy_board.view_props = views
         project_deploy_board.is_votes_enabled = votes
         project_deploy_board.is_comments_enabled = comments
         project_deploy_board.is_reactions_enabled = reactions
+        project_deploy_board.is_intake_enabled = is_intake_enabled
 
         project_deploy_board.save()
 

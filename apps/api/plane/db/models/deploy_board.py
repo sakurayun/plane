@@ -33,6 +33,8 @@ class DeployBoard(WorkspaceBaseModel):
     is_comments_enabled = models.BooleanField(default=False)
     is_reactions_enabled = models.BooleanField(default=False)
     intake = models.ForeignKey("db.Intake", related_name="publish_intake", on_delete=models.SET_NULL, null=True)
+    # Allow signed-in non-members to submit work items into the linked intake
+    is_intake_enabled = models.BooleanField(default=False)
     is_votes_enabled = models.BooleanField(default=False)
     view_props = models.JSONField(default=dict)
     is_activity_enabled = models.BooleanField(default=True)

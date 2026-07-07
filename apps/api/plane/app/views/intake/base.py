@@ -51,7 +51,7 @@ from plane.app.views.base import BaseAPIView
 from plane.utils.timezone_converter import user_timezone_converter
 from plane.utils.global_paginator import paginate
 from plane.utils.host import base_host
-from plane.db.models.intake import SourceType
+from plane.db.models.intake import SourceType, IntakeIssueStatus
 
 
 class IntakeViewSet(BaseViewSet):
@@ -379,6 +379,22 @@ class IntakeIssueViewSet(BaseViewSet):
         issue = None
         issue_current_instance = None
         issue_requested_data = None
+
+        # When accepting an intake work item without an explicit target state,
+        # default it to the project's "需求" backlog state if one exists, so
+        # externally submitted items land in the requirements column
+        if str(request.data.get("status", "")) == str(IntakeIssueStatus.ACCEPTED.value) and (
+            not issue_data or not issue_data.get("state_id")
+        ):
+            requirement_state = State.objects.filter(
+                project_id=project_id,
+                name="需求",
+                group=StateGroup.BACKLOG.value,
+            ).first()
+            if requirement_state is not None:
+                if not issue_data:
+                    issue_data = {}
+                issue_data["state_id"] = str(requirement_state.id)
 
         # Validate issue data if provided
         if bool(issue_data):

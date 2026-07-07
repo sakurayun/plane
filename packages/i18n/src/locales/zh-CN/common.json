@@ -867,5 +867,24 @@
       "description": "将工作项导出为 JSON 文件。",
       "short_description": "导出为 JSON"
     }
+  },
+  "intake_submit": {
+    "button": "提交需求",
+    "title": "提交需求",
+    "subtitle": "你的提交将进入团队收件箱等待审核。",
+    "name_label": "标题",
+    "name_placeholder": "你需要什么？",
+    "name_required": "请填写标题。",
+    "description_label": "描述",
+    "description_placeholder": "补充有助于理解的细节（可选）",
+    "priority_label": "紧急程度",
+    "labels_label": "标签",
+    "submit": "提交",
+    "submitting": "提交中",
+    "success_title": "已提交",
+    "success_message": "你的需求已发送给团队审核。",
+    "error_message": "提交失败，请重试。",
+    "allow_submission": "允许提交需求",
+    "allow_submission_description": "已登录的访客可以向该项目的收件箱提交工作项。"
   }
 }
