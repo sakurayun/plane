@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { observer } from "mobx-react";
 import { useSearchParams } from "next/navigation";
 // plane imports
+import { API_BASE_URL } from "@plane/constants";
 import { OAuthOptions } from "@plane/ui";
 // helpers
 import type { TAuthErrorInfo } from "@/helpers/authentication.helper";
@@ -39,6 +40,8 @@ export const AuthRoot = observer(function AuthRoot(props: TAuthRoot) {
   const invitation_id = searchParams.get("invitation_id");
   const workspaceSlug = searchParams.get("slug");
   const error_code = searchParams.get("error_code");
+  const next_path = searchParams.get("next_path");
+  const no_sso = searchParams.get("no_sso");
   // props
   const { authMode: currentAuthMode } = props;
   // states
@@ -46,6 +49,7 @@ export const AuthRoot = observer(function AuthRoot(props: TAuthRoot) {
   const [authStep, setAuthStep] = useState<EAuthSteps>(EAuthSteps.EMAIL);
   const [email, setEmail] = useState(emailParam ? emailParam.toString() : "");
   const [errorInfo, setErrorInfo] = useState<TAuthErrorInfo | undefined>(undefined);
+  const [isRedirectingToSSO, setIsRedirectingToSSO] = useState(false);
   // store hooks
   const { config } = useInstance();
   // derived values
@@ -57,6 +61,32 @@ export const AuthRoot = observer(function AuthRoot(props: TAuthRoot) {
   useEffect(() => {
     if (!authMode && currentAuthMode) setAuthMode(currentAuthMode);
   }, [currentAuthMode, authMode]);
+
+  // Seamless SSO: when enabled, skip the login form and go straight to the
+  // OIDC identity provider. Guards against redirect loops:
+  // 1. error_code present (failed SSO attempt bounced back) -> stay on page
+  // 2. no_sso=1 (set by sign-out and manual escapes) -> stay on page
+  // 3. one-shot sessionStorage timestamp -> at most one auto-redirect per 30s
+  const shouldAutoRedirectSSO = !!(
+    config?.is_oidc_enabled &&
+    config?.is_oidc_auto_redirect &&
+    !error_code &&
+    no_sso !== "1"
+  );
+
+  useEffect(() => {
+    if (!shouldAutoRedirectSSO) return;
+    try {
+      const lastAttempt = Number(sessionStorage.getItem("oidc_auto_redirect_at") || 0);
+      if (Date.now() - lastAttempt < 30000) return;
+      sessionStorage.setItem("oidc_auto_redirect_at", String(Date.now()));
+    } catch {
+      // sessionStorage unavailable - still redirect, backend errors bounce
+      // back with error_code which stops the loop
+    }
+    setIsRedirectingToSSO(true);
+    window.location.assign(`${API_BASE_URL}/auth/oidc/${next_path ? `?next_path=${next_path}` : ""}`);
+  }, [shouldAutoRedirectSSO, next_path]);
 
   useEffect(() => {
     if (error_code && authMode) {
@@ -99,6 +129,17 @@ export const AuthRoot = observer(function AuthRoot(props: TAuthRoot) {
       }
     }
   }, [error_code, authMode]);
+
+  if (isRedirectingToSSO) {
+    return (
+      <AuthContainer>
+        <AuthHeaderBase
+          header={`Redirecting to ${config?.oidc_display_name || "SSO"}...`}
+          subHeader="You are being signed in through your identity provider."
+        />
+      </AuthContainer>
+    );
+  }
 
   if (!authMode) return <></>;
 

@@ -23,6 +23,8 @@ class SignOutAuthEndpoint(View):
             user.save()
             # Log the user out
             logout(request)
-            return HttpResponseRedirect(base_host(request=request, is_app=True))
+            # no_sso=1 tells the login page to skip the OIDC auto-redirect
+            # (avoids a sign-out -> auto-SSO login loop)
+            return HttpResponseRedirect(f"{base_host(request=request, is_app=True)}?no_sso=1")
         except Exception:
-            return HttpResponseRedirect(base_host(request=request, is_app=True))
+            return HttpResponseRedirect(f"{base_host(request=request, is_app=True)}?no_sso=1")
