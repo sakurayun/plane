@@ -138,7 +138,11 @@ def get_llm_response(
 
         client = OpenAI(api_key=api_key, base_url=base_url)
         chat_completion = client.chat.completions.create(
-            model=model, messages=[{"role": "user", "content": final_text}]
+            model=model,
+            messages=[
+                {"role": "system", "content": "你是 Plane 的中文助手，无论输入是什么语言，都必须始终用简体中文回复。"},
+                {"role": "user", "content": final_text},
+            ],
         )
         text = chat_completion.choices[0].message.content
         return text, None

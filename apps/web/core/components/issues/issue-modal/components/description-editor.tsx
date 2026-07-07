@@ -122,7 +122,7 @@ export const IssueDescriptionEditor = observer(function IssueDescriptionEditor(p
     aiService
       .createGptTask(workspaceSlug.toString(), {
         prompt: issueName,
-        task: "Generate a proper description for this work item.",
+        task: "为这个工作项生成一段合适的描述。\n请务必用中文回复。",
       })
       .then((res) => {
         if (res.response === "")

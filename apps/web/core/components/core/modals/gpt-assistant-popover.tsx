@@ -108,7 +108,7 @@ export function GptAssistantPopover(props: Props) {
     try {
       const res = await aiService.createGptTask(workspaceSlug.toString(), {
         prompt: prompt || "",
-        task: formData.task,
+        task: `${formData.task}\n请务必用中文回复。`,
       });
 
       setResponse(res.response_html);
