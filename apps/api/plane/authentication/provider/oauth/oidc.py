@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # See the LICENSE file for details.
 
+import base64
 import os
 from datetime import datetime, timedelta
 from urllib.parse import urlencode, urlparse
@@ -108,16 +109,19 @@ class OIDCOAuthProvider(OauthAdapter):
         )
 
     def set_token_data(self):
+        # client_secret_basic is the OIDC spec default and the only method
+        # accepted by several IdPs (e.g. Logto traditional web apps), so the
+        # secret goes into the Authorization header instead of the form body
         data = {
             "code": self.code,
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
             "redirect_uri": self.redirect_uri,
             "grant_type": "authorization_code",
         }
+        basic_auth = base64.b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": f"Basic {basic_auth}",
         }
         token_response = self.get_user_token(data=data, headers=headers)
         super().set_token_data(
