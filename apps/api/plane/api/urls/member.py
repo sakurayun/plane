@@ -5,12 +5,24 @@
 from django.urls import path
 
 from plane.api.views import (
+    WorkspaceMemberLiteAPIEndpoint,
+    ProjectMemberLiteAPIEndpoint,
     ProjectMemberListCreateAPIEndpoint,
     ProjectMemberDetailAPIEndpoint,
     WorkspaceMemberAPIEndpoint,
 )
 
 urlpatterns = [
+    path(
+        "workspaces/<str:slug>/members-lite/",
+        WorkspaceMemberLiteAPIEndpoint.as_view(http_method_names=["get"]),
+        name="workspace-members-lite",
+    ),
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/project-members-lite/",
+        ProjectMemberLiteAPIEndpoint.as_view(http_method_names=["get"]),
+        name="project-members-lite",
+    ),
     # Project members
     path(
         "workspaces/<str:slug>/projects/<uuid:project_id>/members/",

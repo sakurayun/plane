@@ -5,6 +5,7 @@
 from django.urls import path
 
 from plane.api.views.cycle import (
+    CycleLiteListAPIEndpoint,
     CycleListCreateAPIEndpoint,
     CycleDetailAPIEndpoint,
     CycleIssueListCreateAPIEndpoint,
@@ -14,6 +15,11 @@ from plane.api.views.cycle import (
 )
 
 urlpatterns = [
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/cycles-lite/",
+        CycleLiteListAPIEndpoint.as_view(http_method_names=["get"]),
+        name="cycles-lite",
+    ),
     path(
         "workspaces/<str:slug>/projects/<uuid:project_id>/cycles/",
         CycleListCreateAPIEndpoint.as_view(http_method_names=["get", "post"]),

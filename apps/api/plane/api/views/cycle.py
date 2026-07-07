@@ -31,6 +31,7 @@ from plane.api.serializers import (
     TransferCycleIssueRequestSerializer,
     CycleCreateSerializer,
     CycleUpdateSerializer,
+    CycleLiteSerializer,
     IssueSerializer,
 )
 from plane.app.permissions import ProjectEntityPermission
@@ -1215,3 +1216,49 @@ class TransferCycleIssueAPIEndpoint(BaseAPIView):
                 {"error": result.get("error")},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+
+class CycleLiteListAPIEndpoint(BaseAPIView):
+    """Paginated lite list of active (non-archived) cycles in a project."""
+
+    serializer_class = CycleLiteSerializer
+    model = Cycle
+    permission_classes = [ProjectEntityPermission]
+    use_read_replica = True
+
+    def get_queryset(self):
+        queryset = (
+            Cycle.objects.filter(workspace__slug=self.kwargs.get("slug"))
+            .filter(project_id=self.kwargs.get("project_id"))
+            .filter(
+                project__project_projectmember__member=self.request.user,
+                project__project_projectmember__is_active=True,
+            )
+            .filter(archived_at__isnull=True)
+            .select_related("project", "workspace", "owned_by")
+        )
+
+        # Optional status filter: current | upcoming | completed | draft | incomplete
+        status_param = self.request.GET.get("status") or self.request.GET.get("cycle_view")
+        now = timezone.now()
+        if status_param == "current":
+            queryset = queryset.filter(start_date__lte=now, end_date__gte=now)
+        elif status_param == "upcoming":
+            queryset = queryset.filter(start_date__gt=now)
+        elif status_param == "completed":
+            queryset = queryset.filter(end_date__lt=now)
+        elif status_param == "draft":
+            queryset = queryset.filter(start_date__isnull=True, end_date__isnull=True)
+        elif status_param == "incomplete":
+            queryset = queryset.filter(Q(end_date__isnull=True) | Q(end_date__gte=now))
+
+        return queryset.order_by(self.request.GET.get("order_by", "-created_at")).distinct()
+
+    def get(self, request, slug, project_id):
+        return self.paginate(
+            request=request,
+            queryset=self.get_queryset(),
+            on_results=lambda cycles: CycleLiteSerializer(
+                cycles, many=True, fields=self.fields, expand=self.expand
+            ).data,
+        )

@@ -14,6 +14,7 @@ from django.db import IntegrityError
 from django.db.models import (
     Case,
     CharField,
+    Count,
     Exists,
     F,
     Func,
@@ -63,6 +64,7 @@ from plane.app.permissions import (
     ProjectEntityPermission,
     ProjectLitePermission,
     ProjectMemberPermission,
+    WorkspaceEntityPermission,
 )
 from plane.bgtasks.issue_activities_task import issue_activity
 from plane.db.models import (
@@ -2554,3 +2556,310 @@ class IssueRelationListCreateAPIEndpoint(BaseAPIView):
             serializer_class(refetched_relations, many=True).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+# Allowlisted group_by / sub_group_by dimensions for the workspace count endpoint
+WORKSPACE_COUNT_GROUP_BY_MAP = {
+    "priority": "priority",
+    "state_id": "state_id",
+    "state__group": "state__group",
+    "assignee_id": "assignees__id",
+    "label_id": "labels__id",
+    "project_id": "project_id",
+    "type_id": "type_id",
+    "created_by": "created_by_id",
+    "target_date": "target_date",
+    "start_date": "start_date",
+}
+
+
+def workspace_work_items_queryset(slug, user):
+    """Work items across all projects of the workspace visible to the member."""
+    return (
+        Issue.issue_objects.filter(workspace__slug=slug)
+        .filter(
+            project__project_projectmember__member=user,
+            project__project_projectmember__is_active=True,
+            project__archived_at__isnull=True,
+        )
+        .distinct()
+    )
+
+
+class WorkspaceWorkItemsListAPIEndpoint(BaseAPIView):
+    """Paginated list of work items across all accessible projects in a workspace."""
+
+    model = Issue
+    serializer_class = IssueSerializer
+    permission_classes = [WorkspaceEntityPermission]
+    use_read_replica = True
+
+    def get_queryset(self):
+        return (
+            workspace_work_items_queryset(self.kwargs.get("slug"), self.request.user)
+            .select_related("project", "workspace", "state", "parent")
+            .prefetch_related("assignees", "labels")
+            .order_by(self.request.GET.get("order_by", "-created_at"))
+        )
+
+    def get(self, request, slug):
+        # Note: `filters`/`pql` query params are not supported on Community
+        # Edition and are ignored
+        return self.paginate(
+            request=request,
+            queryset=self.get_queryset(),
+            on_results=lambda issues: IssueSerializer(
+                issues, many=True, fields=self.fields, expand=self.expand
+            ).data,
+        )
+
+
+class WorkspaceWorkItemsCountAPIEndpoint(BaseAPIView):
+    """Grouped counts of work items across all accessible projects in a workspace."""
+
+    model = Issue
+    permission_classes = [WorkspaceEntityPermission]
+    use_read_replica = True
+
+    def get(self, request, slug):
+        queryset = workspace_work_items_queryset(slug, request.user)
+
+        group_by = request.GET.get("group_by") or None
+        sub_group_by = request.GET.get("sub_group_by") or None
+
+        response_data = {
+            "grouped_by": group_by,
+            "sub_grouped_by": sub_group_by if group_by else None,
+            "total_count": queryset.count(),
+            "grouped_counts": {},
+        }
+
+        if group_by is None:
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        group_field = WORKSPACE_COUNT_GROUP_BY_MAP.get(group_by)
+        if group_field is None:
+            return Response(
+                {"error": f"Unsupported group_by value: {group_by}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        grouped_counts = {
+            str(row[group_field]): {"count": row["count"]}
+            for row in queryset.values(group_field).annotate(count=Count("id", distinct=True))
+        }
+
+        if sub_group_by is not None:
+            sub_group_field = WORKSPACE_COUNT_GROUP_BY_MAP.get(sub_group_by)
+            if sub_group_field is None:
+                return Response(
+                    {"error": f"Unsupported sub_group_by value: {sub_group_by}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if sub_group_field == group_field:
+                return Response(
+                    {"error": "group_by and sub_group_by must be different"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            for entry in grouped_counts.values():
+                entry["sub_grouped_counts"] = {}
+            for row in queryset.values(group_field, sub_group_field).annotate(count=Count("id", distinct=True)):
+                group_key = str(row[group_field])
+                grouped_counts.setdefault(group_key, {"count": 0, "sub_grouped_counts": {}})
+                grouped_counts[group_key]["sub_grouped_counts"][str(row[sub_group_field])] = {"count": row["count"]}
+
+        response_data["grouped_counts"] = grouped_counts
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
+DEPENDENCY_DIRECTIONS = (
+    "blocking",
+    "blocked_by",
+    "start_before",
+    "start_after",
+    "finish_before",
+    "finish_after",
+)
+
+# Stored (forward) relation type -> (direction when this issue is the source,
+# direction when this issue is the target)
+STORED_DEPENDENCY_DIRECTION_MAP = {
+    "blocked_by": ("blocked_by", "blocking"),
+    "start_before": ("start_before", "start_after"),
+    "finish_before": ("finish_before", "finish_after"),
+}
+
+
+class WorkItemDependenciesAPIEndpoint(BaseAPIView):
+    """List and create built-in dependency relations for a work item."""
+
+    model = IssueRelation
+    permission_classes = [ProjectEntityPermission]
+    use_read_replica = True
+
+    def _issue_payloads(self, slug, issue_ids, relation_type):
+        if not issue_ids:
+            return []
+        rows = Issue.issue_objects.filter(workspace__slug=slug, pk__in=issue_ids).values(
+            "id",
+            "name",
+            "sequence_id",
+            "project_id",
+            "state_id",
+            "priority",
+            "type_id",
+            "sort_order",
+            "created_at",
+            "updated_at",
+            "created_by_id",
+            "updated_by_id",
+        )
+        return [
+            {
+                "id": str(row["id"]),
+                "name": row["name"],
+                "sequence_id": row["sequence_id"],
+                "project_id": str(row["project_id"]),
+                "state_id": str(row["state_id"]) if row["state_id"] else None,
+                "priority": row["priority"],
+                "type_id": str(row["type_id"]) if row["type_id"] else None,
+                "sort_order": row["sort_order"],
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+                "created_by": str(row["created_by_id"]) if row["created_by_id"] else None,
+                "updated_by": str(row["updated_by_id"]) if row["updated_by_id"] else None,
+                "relation_type": relation_type,
+            }
+            for row in rows
+        ]
+
+    def get(self, request, slug, project_id, issue_id):
+        relations = IssueRelation.objects.filter(
+            Q(issue_id=issue_id) | Q(related_issue_id=issue_id),
+            workspace__slug=slug,
+            relation_type__in=STORED_DEPENDENCY_DIRECTION_MAP.keys(),
+        ).values("relation_type", "issue_id", "related_issue_id")
+
+        direction_ids = {key: [] for key in DEPENDENCY_DIRECTIONS}
+        for rel in relations:
+            forward, reverse = STORED_DEPENDENCY_DIRECTION_MAP[rel["relation_type"]]
+            if str(rel["issue_id"]) == str(issue_id):
+                direction_ids[forward].append(rel["related_issue_id"])
+            if str(rel["related_issue_id"]) == str(issue_id):
+                direction_ids[reverse].append(rel["issue_id"])
+
+        return Response(
+            {
+                direction: self._issue_payloads(slug, ids, direction)
+                for direction, ids in direction_ids.items()
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def post(self, request, slug, project_id, issue_id):
+        relation_type = request.data.get("relation_type")
+        work_item_ids = request.data.get("work_item_ids") or request.data.get("issues") or []
+
+        if relation_type not in DEPENDENCY_DIRECTIONS:
+            return Response(
+                {"error": f"relation_type must be one of {', '.join(DEPENDENCY_DIRECTIONS)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not isinstance(work_item_ids, list) or not work_item_ids:
+            return Response(
+                {"error": "work_item_ids must be a non-empty list"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        project = Project.objects.get(pk=project_id, workspace__slug=slug)
+        actual_relation = get_actual_relation(relation_type)
+        is_reverse = relation_type in ("blocking", "start_after", "finish_after")
+
+        # Scope to workspace to prevent cross-tenant IDOR; relations may cross projects
+        target_ids = list(
+            Issue.issue_objects.filter(workspace__slug=slug, pk__in=work_item_ids).values_list("id", flat=True)
+        )
+        if not target_ids:
+            return Response(
+                {"error": "No valid work items found for the given ids"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        IssueRelation.objects.bulk_create(
+            [
+                IssueRelation(
+                    issue_id=(target if is_reverse else issue_id),
+                    related_issue_id=(issue_id if is_reverse else target),
+                    relation_type=actual_relation,
+                    project_id=project_id,
+                    workspace_id=project.workspace_id,
+                    created_by=request.user,
+                    updated_by=request.user,
+                )
+                for target in target_ids
+            ],
+            batch_size=10,
+            ignore_conflicts=True,
+        )
+
+        issue_activity.delay(
+            type="issue_relation.activity.created",
+            requested_data=json.dumps(
+                {"relation_type": relation_type, "issues": [str(target) for target in target_ids]},
+                cls=DjangoJSONEncoder,
+            ),
+            actor_id=str(request.user.id),
+            issue_id=str(issue_id),
+            project_id=str(project_id),
+            current_instance=None,
+            epoch=int(timezone.now().timestamp()),
+            notification=True,
+            origin=base_host(request=request, is_app=True),
+        )
+
+        return Response(
+            self._issue_payloads(slug, target_ids, relation_type),
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class WorkItemDependencyDetailAPIEndpoint(BaseAPIView):
+    """Remove a built-in dependency relation between two work items."""
+
+    model = IssueRelation
+    permission_classes = [ProjectEntityPermission]
+
+    def delete(self, request, slug, project_id, issue_id, related_id):
+        relation = (
+            IssueRelation.objects.filter(
+                workspace__slug=slug,
+                relation_type__in=STORED_DEPENDENCY_DIRECTION_MAP.keys(),
+            )
+            .filter(
+                Q(issue_id=issue_id, related_issue_id=related_id)
+                | Q(issue_id=related_id, related_issue_id=issue_id)
+            )
+            .first()
+        )
+        if relation is None:
+            return Response({"error": "Dependency not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        current_instance = json.dumps(
+            {"related_issue": str(related_id), "relation_type": relation.relation_type},
+            cls=DjangoJSONEncoder,
+        )
+        relation.delete()
+
+        issue_activity.delay(
+            type="issue_relation.activity.deleted",
+            requested_data=json.dumps({"related_list": [str(related_id)]}, cls=DjangoJSONEncoder),
+            actor_id=str(request.user.id),
+            issue_id=str(issue_id),
+            project_id=str(project_id),
+            current_instance=current_instance,
+            epoch=int(timezone.now().timestamp()),
+            notification=True,
+            origin=base_host(request=request, is_app=True),
+        )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

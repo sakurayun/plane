@@ -21,4 +21,10 @@ urlpatterns = [
         IntakeIssueDetailAPIEndpoint.as_view(http_method_names=["get", "patch", "delete"]),
         name="intake-issue",
     ),
+    # Status updates share the detail PATCH logic (status/snoozed_till/duplicate_to)
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/intake-issues/<uuid:issue_id>/status/",
+        IntakeIssueDetailAPIEndpoint.as_view(http_method_names=["patch"]),
+        name="intake-issue-status",
+    ),
 ]

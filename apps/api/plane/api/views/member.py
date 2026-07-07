@@ -13,9 +13,15 @@ from drf_spectacular.utils import (
 
 # Module imports
 from .base import BaseAPIView
-from plane.api.serializers import UserLiteSerializer, ProjectMemberSerializer
+from plane.api.serializers import UserLiteSerializer, ProjectMemberSerializer, MemberLiteSerializer
 from plane.db.models import User, Workspace, WorkspaceMember, ProjectMember
-from plane.utils.permissions import ProjectMemberPermission, WorkSpaceAdminPermission, ProjectAdminPermission
+from plane.utils.permissions import (
+    ProjectMemberPermission,
+    WorkSpaceAdminPermission,
+    ProjectAdminPermission,
+    ProjectEntityPermission,
+    WorkspaceEntityPermission,
+)
 from plane.utils.openapi import (
     WORKSPACE_SLUG_PARAMETER,
     PROJECT_ID_PARAMETER,
@@ -220,3 +226,71 @@ class ProjectMemberDetailAPIEndpoint(ProjectMemberListCreateAPIEndpoint):
         project_member.is_active = False
         project_member.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def apply_member_filters(queryset, request):
+    """Apply the optional member filter query params shared by the lite endpoints."""
+    filters = {
+        "member__first_name__icontains": request.GET.get("first_name"),
+        "member__last_name__icontains": request.GET.get("last_name"),
+        "member__email__icontains": request.GET.get("email"),
+        "member__display_name__icontains": request.GET.get("display_name"),
+    }
+    for lookup, value in filters.items():
+        if value:
+            queryset = queryset.filter(**{lookup: value})
+
+    is_active = request.GET.get("is_active")
+    if is_active is not None and is_active != "":
+        queryset = queryset.filter(is_active=is_active.lower() == "true")
+
+    is_bot = request.GET.get("is_bot")
+    if is_bot is not None and is_bot != "":
+        queryset = queryset.filter(member__is_bot=is_bot.lower() == "true")
+
+    role_slug = request.GET.get("role_slug")
+    if role_slug:
+        slug_role_map = {"admin": 20, "member": 15, "guest": 5}
+        queryset = queryset.filter(role=slug_role_map.get(role_slug.lower(), -1))
+
+    return queryset
+
+
+class WorkspaceMemberLiteAPIEndpoint(BaseAPIView):
+    """Paginated, filterable list of workspace members (lite shape)."""
+
+    permission_classes = [WorkspaceEntityPermission]
+    use_read_replica = True
+
+    def get(self, request, slug):
+        queryset = (
+            WorkspaceMember.objects.filter(workspace__slug=slug)
+            .select_related("member")
+            .order_by(request.GET.get("order_by", "-created_at"))
+        )
+        queryset = apply_member_filters(queryset, request)
+        return self.paginate(
+            request=request,
+            queryset=queryset,
+            on_results=lambda members: MemberLiteSerializer(members, many=True).data,
+        )
+
+
+class ProjectMemberLiteAPIEndpoint(BaseAPIView):
+    """Paginated, filterable list of project members (lite shape)."""
+
+    permission_classes = [ProjectEntityPermission]
+    use_read_replica = True
+
+    def get(self, request, slug, project_id):
+        queryset = (
+            ProjectMember.objects.filter(workspace__slug=slug, project_id=project_id)
+            .select_related("member")
+            .order_by(request.GET.get("order_by", "-created_at"))
+        )
+        queryset = apply_member_filters(queryset, request)
+        return self.paginate(
+            request=request,
+            queryset=queryset,
+            on_results=lambda members: MemberLiteSerializer(members, many=True).data,
+        )

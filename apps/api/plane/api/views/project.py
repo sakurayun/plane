@@ -45,8 +45,15 @@ from plane.api.serializers import (
     ProjectSerializer,
     ProjectCreateSerializer,
     ProjectUpdateSerializer,
+    ProjectLiteSerializer,
 )
-from plane.app.permissions import ProjectBasePermission, WorkSpaceAdminPermission
+from plane.app.permissions import (
+    ProjectBasePermission,
+    WorkSpaceAdminPermission,
+    WorkspaceEntityPermission,
+    ProjectEntityPermission,
+    ProjectAdminPermission,
+)
 from plane.utils.openapi import (
     project_docs,
     PROJECT_ID_PARAMETER,
@@ -716,3 +723,91 @@ class ProjectSummaryAPIEndpoint(BaseAPIView):
             return {field: 0 for field in requested_fields}
         # Return the result as a dictionary
         return {field: query_result[_annotation_name(field)] for field in requested_fields}
+
+
+class ProjectLiteListAPIEndpoint(BaseAPIView):
+    """Paginated lite list of projects the requesting member can access."""
+
+    serializer_class = ProjectLiteSerializer
+    model = Project
+    permission_classes = [WorkspaceEntityPermission]
+    use_read_replica = True
+
+    def get_queryset(self):
+        queryset = Project.objects.filter(
+            workspace__slug=self.kwargs.get("slug"),
+            project_projectmember__member=self.request.user,
+            project_projectmember__is_active=True,
+        )
+        include_archived = self.request.GET.get("include_archived", "false").lower() == "true"
+        if not include_archived:
+            queryset = queryset.filter(archived_at__isnull=True)
+        return queryset.order_by(self.request.GET.get("order_by", "-created_at")).distinct()
+
+    def get(self, request, slug):
+        return self.paginate(
+            request=request,
+            queryset=self.get_queryset(),
+            on_results=lambda projects: ProjectLiteSerializer(
+                projects, many=True, fields=self.fields, expand=self.expand
+            ).data,
+        )
+
+
+# Public API feature keys mapped to boolean fields on the Project model
+PROJECT_FEATURE_FIELD_MAP = {
+    "modules": "module_view",
+    "cycles": "cycle_view",
+    "views": "issue_views_view",
+    "pages": "page_view",
+    "intakes": "intake_view",
+    "work_item_types": "is_issue_type_enabled",
+}
+
+# Features that only exist on Plane EE/Cloud - always reported as disabled
+EE_PROJECT_FEATURES = ("epics", "workflows", "parallel_cycles", "project_updates")
+
+
+class ProjectFeatureAPIEndpoint(BaseAPIView):
+    """Read and toggle project feature flags."""
+
+    model = Project
+    use_read_replica = True
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [ProjectEntityPermission()]
+        return [ProjectAdminPermission()]
+
+    def _feature_payload(self, project):
+        payload = {key: bool(getattr(project, field)) for key, field in PROJECT_FEATURE_FIELD_MAP.items()}
+        payload.update({key: False for key in EE_PROJECT_FEATURES})
+        return payload
+
+    def get(self, request, slug, project_id):
+        project = Project.objects.get(pk=project_id, workspace__slug=slug)
+        return Response(self._feature_payload(project), status=status.HTTP_200_OK)
+
+    def patch(self, request, slug, project_id):
+        project = Project.objects.get(pk=project_id, workspace__slug=slug)
+        current_instance = json.dumps(self._feature_payload(project), cls=DjangoJSONEncoder)
+
+        updated_fields = []
+        for key, field in PROJECT_FEATURE_FIELD_MAP.items():
+            if key in request.data:
+                setattr(project, field, bool(request.data.get(key)))
+                updated_fields.append(field)
+
+        if updated_fields:
+            project.save(update_fields=updated_fields + ["updated_at"])
+            model_activity.delay(
+                model_name="project",
+                model_id=str(project.id),
+                requested_data=json.dumps(request.data, cls=DjangoJSONEncoder),
+                current_instance=current_instance,
+                actor_id=str(request.user.id),
+                slug=slug,
+                origin=base_host(request=request, is_app=True),
+            )
+
+        return Response(self._feature_payload(project), status=status.HTTP_200_OK)

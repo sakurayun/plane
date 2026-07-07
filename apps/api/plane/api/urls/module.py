@@ -5,6 +5,7 @@
 from django.urls import path
 
 from plane.api.views import (
+    ModuleLiteListAPIEndpoint,
     ModuleListCreateAPIEndpoint,
     ModuleDetailAPIEndpoint,
     ModuleIssueListCreateAPIEndpoint,
@@ -13,6 +14,11 @@ from plane.api.views import (
 )
 
 urlpatterns = [
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/modules-lite/",
+        ModuleLiteListAPIEndpoint.as_view(http_method_names=["get"]),
+        name="modules-lite",
+    ),
     path(
         "workspaces/<str:slug>/projects/<uuid:project_id>/modules/",
         ModuleListCreateAPIEndpoint.as_view(http_method_names=["get", "post"]),

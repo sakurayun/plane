@@ -24,6 +24,7 @@ from plane.api.serializers import (
     ModuleIssueRequestSerializer,
     ModuleCreateSerializer,
     ModuleUpdateSerializer,
+    ModuleLiteSerializer,
 )
 from plane.app.permissions import ProjectEntityPermission
 from plane.bgtasks.issue_activities_task import issue_activity
@@ -1076,3 +1077,35 @@ class ModuleArchiveUnarchiveAPIEndpoint(BaseAPIView):
         module.archived_at = None
         module.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ModuleLiteListAPIEndpoint(BaseAPIView):
+    """Paginated lite list of active (non-archived) modules in a project."""
+
+    serializer_class = ModuleLiteSerializer
+    model = Module
+    permission_classes = [ProjectEntityPermission]
+    use_read_replica = True
+
+    def get_queryset(self):
+        return (
+            Module.objects.filter(workspace__slug=self.kwargs.get("slug"))
+            .filter(project_id=self.kwargs.get("project_id"))
+            .filter(
+                project__project_projectmember__member=self.request.user,
+                project__project_projectmember__is_active=True,
+            )
+            .filter(archived_at__isnull=True)
+            .select_related("project", "workspace")
+            .order_by(self.request.GET.get("order_by", "-created_at"))
+            .distinct()
+        )
+
+    def get(self, request, slug, project_id):
+        return self.paginate(
+            request=request,
+            queryset=self.get_queryset(),
+            on_results=lambda modules: ModuleLiteSerializer(
+                modules, many=True, fields=self.fields, expand=self.expand
+            ).data,
+        )

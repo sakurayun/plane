@@ -41,3 +41,29 @@ class ProjectMemberSerializer(BaseSerializer):
         model = ProjectMember
         fields = ["id", "member", "role"]
         read_only_fields = ["id"]
+
+
+ROLE_SLUG_MAP = {
+    ROLE.ADMIN.value: "admin",
+    ROLE.MEMBER.value: "member",
+    ROLE.GUEST.value: "guest",
+}
+
+
+class MemberLiteSerializer(serializers.Serializer):
+    """
+    Flattened member representation for the members-lite endpoints.
+
+    Outputs the member's user fields (UserLite shape) alongside role, role_slug,
+    is_active and is_bot. Works for both WorkspaceMember and ProjectMember rows.
+    """
+
+    def to_representation(self, instance):
+        from .user import UserLiteSerializer
+
+        data = UserLiteSerializer(instance.member).data
+        data["role"] = instance.role
+        data["role_slug"] = ROLE_SLUG_MAP.get(instance.role)
+        data["is_active"] = instance.is_active
+        data["is_bot"] = instance.member.is_bot
+        return data

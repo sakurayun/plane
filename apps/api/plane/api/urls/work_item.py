@@ -18,6 +18,10 @@ from plane.api.views import (
     WorkspaceIssueAPIEndpoint,
     IssueSearchEndpoint,
     IssueRelationListCreateAPIEndpoint,
+    WorkspaceWorkItemsListAPIEndpoint,
+    WorkspaceWorkItemsCountAPIEndpoint,
+    WorkItemDependenciesAPIEndpoint,
+    WorkItemDependencyDetailAPIEndpoint,
 )
 
 # Deprecated url patterns
@@ -86,6 +90,18 @@ old_url_patterns = [
 
 # New url patterns with work-items as the prefix
 new_url_patterns = [
+    # NOTE: the workspace list/count/search routes must stay above the
+    # <project_identifier>-<issue_identifier> route so they are not shadowed
+    path(
+        "workspaces/<str:slug>/work-items/",
+        WorkspaceWorkItemsListAPIEndpoint.as_view(http_method_names=["get"]),
+        name="workspace-work-items",
+    ),
+    path(
+        "workspaces/<str:slug>/work-items/count/",
+        WorkspaceWorkItemsCountAPIEndpoint.as_view(http_method_names=["get"]),
+        name="workspace-work-items-count",
+    ),
     path(
         "workspaces/<str:slug>/work-items/search/",
         IssueSearchEndpoint.as_view(http_method_names=["get"]),
@@ -150,6 +166,16 @@ new_url_patterns = [
         "workspaces/<str:slug>/projects/<uuid:project_id>/work-items/<uuid:issue_id>/relations/",
         IssueRelationListCreateAPIEndpoint.as_view(http_method_names=["get", "post"]),
         name="work-item-relation-list",
+    ),
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/work-items/<uuid:issue_id>/dependencies/",
+        WorkItemDependenciesAPIEndpoint.as_view(http_method_names=["get", "post"]),
+        name="work-item-dependencies",
+    ),
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/work-items/<uuid:issue_id>/dependencies/<uuid:related_id>/",
+        WorkItemDependencyDetailAPIEndpoint.as_view(http_method_names=["delete"]),
+        name="work-item-dependency-detail",
     ),
 ]
 

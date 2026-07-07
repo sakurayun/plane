@@ -62,5 +62,7 @@ from .asset import (
     FileAssetSerializer,
 )
 from .invite import WorkspaceInviteSerializer
-from .member import ProjectMemberSerializer
+from .member import ProjectMemberSerializer, MemberLiteSerializer
 from .sticky import StickySerializer
+from .page import PageAPISerializer, PageCreateAPISerializer
+from .issue_type import IssueTypeAPISerializer, IssueTypeCreateAPISerializer

@@ -7,6 +7,8 @@ from .project import (
     ProjectDetailAPIEndpoint,
     ProjectArchiveUnarchiveAPIEndpoint,
     ProjectSummaryAPIEndpoint,
+    ProjectLiteListAPIEndpoint,
+    ProjectFeatureAPIEndpoint,
 )
 
 from .state import (
@@ -30,6 +32,10 @@ from .issue import (
     IssueAttachmentDetailAPIEndpoint,
     IssueSearchEndpoint,
     IssueRelationListCreateAPIEndpoint,
+    WorkspaceWorkItemsListAPIEndpoint,
+    WorkspaceWorkItemsCountAPIEndpoint,
+    WorkItemDependenciesAPIEndpoint,
+    WorkItemDependencyDetailAPIEndpoint,
 )
 
 from .cycle import (
@@ -39,6 +45,7 @@ from .cycle import (
     CycleIssueDetailAPIEndpoint,
     TransferCycleIssueAPIEndpoint,
     CycleArchiveUnarchiveAPIEndpoint,
+    CycleLiteListAPIEndpoint,
 )
 
 from .module import (
@@ -47,9 +54,16 @@ from .module import (
     ModuleIssueListCreateAPIEndpoint,
     ModuleIssueDetailAPIEndpoint,
     ModuleArchiveUnarchiveAPIEndpoint,
+    ModuleLiteListAPIEndpoint,
 )
 
-from .member import ProjectMemberListCreateAPIEndpoint, ProjectMemberDetailAPIEndpoint, WorkspaceMemberAPIEndpoint
+from .member import (
+    ProjectMemberListCreateAPIEndpoint,
+    ProjectMemberDetailAPIEndpoint,
+    WorkspaceMemberAPIEndpoint,
+    WorkspaceMemberLiteAPIEndpoint,
+    ProjectMemberLiteAPIEndpoint,
+)
 
 from .intake import (
     IntakeIssueListCreateAPIEndpoint,
@@ -63,3 +77,20 @@ from .user import UserEndpoint
 from .invite import WorkspaceInvitationsViewset
 
 from .sticky import StickyViewSet
+
+from .page import (
+    ProjectPageListCreateAPIEndpoint,
+    ProjectPageDetailAPIEndpoint,
+    WorkspacePageListCreateAPIEndpoint,
+    WorkspacePageDetailAPIEndpoint,
+)
+
+from .workspace import WorkspaceFeatureAPIEndpoint
+
+from .issue_type import (
+    ProjectWorkItemTypeListCreateAPIEndpoint,
+    ProjectWorkItemTypeDetailAPIEndpoint,
+    WorkspaceWorkItemTypeListCreateAPIEndpoint,
+    WorkspaceWorkItemTypeDetailAPIEndpoint,
+    ImportWorkItemTypesAPIEndpoint,
+)
