@@ -19,7 +19,7 @@
   },
   "github_integration": {
     "name": "GitHub",
-    "description": "将您的 GitHub 工作项与 Plane 连接并同步",
+    "description": "将你的 GitHub 仓库连接到 Plane",
     "connect_org": "连接组织",
     "connect_org_description": "将您的 GitHub 组织与 Plane 连接",
     "processing": "处理中",
@@ -66,7 +66,7 @@
   },
   "gitlab_integration": {
     "name": "Gitlab",
-    "description": "连接并同步您的 Gitlab 合并请求与 Plane。",
+    "description": "将你的 GitLab 仓库连接到 Plane",
     "connection_fetch_error": "从服务器获取连接详情时出错",
     "connect_org": "连接组织",
     "connect_org_description": "将您的 Gitlab 组织与 Plane 连接。",
@@ -107,7 +107,7 @@
   },
   "gitlab_enterprise_integration": {
     "name": "Gitlab Enterprise",
-    "description": "连接并同步您的 Gitlab Enterprise 实例与 Plane。",
+    "description": "将你自托管的 GitLab 实例连接到 Plane",
     "app_form_title": "Gitlab Enterprise 配置",
     "app_form_description": "配置 Gitlab Enterprise 以连接到 Plane。",
     "base_url_title": "基础 URL",
@@ -131,7 +131,7 @@
   },
   "slack_integration": {
     "name": "Slack",
-    "description": "将您的 Slack 工作区与 Plane 连接。",
+    "description": "将你的 Slack 工作区连接到 Plane",
     "connect_personal_account": "将您的个人 Slack 账户与 Plane 连接。",
     "personal_account_connected": "您的个人 {providerName} 账户现已连接到 Plane。",
     "link_personal_account": "将您的个人 {providerName} 账户链接到 Plane。",
@@ -176,7 +176,7 @@
   },
   "sentry_integration": {
     "name": "Sentry",
-    "description": "将您的Sentry工作空间连接到Plane。",
+    "description": "将你的 Sentry 连接到 Plane",
     "connected_sentry_workspaces": "已连接的Sentry工作空间",
     "connected_on": "连接于{date}",
     "disconnect_workspace": "断开{name}工作空间",
@@ -196,7 +196,7 @@
   },
   "bitbucket_dc_integration": {
     "name": "Bitbucket Data Center",
-    "description": "将您的 Bitbucket Data Center 仓库与 Plane 连接并同步。"
+    "description": "将你自托管的 Bitbucket 实例连接到 Plane"
   },
   "oauth_bridge_integration": {
     "name": "OAuth Bridge",
@@ -266,7 +266,7 @@
   },
   "github_enterprise_integration": {
     "name": "GitHub Enterprise",
-    "description": "连接并同步您的 GitHub Enterprise 组织与 Plane。",
+    "description": "将你自托管的 GitHub 实例连接到 Plane",
     "app_form_title": "GitHub Enterprise 配置",
     "app_form_description": "配置 GitHub Enterprise 以连接到 Plane。",
     "app_id_title": "App ID",

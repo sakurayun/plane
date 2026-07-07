@@ -100,7 +100,7 @@
       "webhooks": {
         "heading": "Webhooks",
         "description": "在项目事件发生时自动向外部服务发送通知。",
-        "title": "Webhooks",
+        "title": "Webhook",
         "add_webhook": "添加 webhook",
         "modal": {
           "title": "创建 webhook",
@@ -291,7 +291,7 @@
       },
       "applications": {
         "internal": "内部",
-        "title": "应用程序",
+        "title": "应用",
         "applicationId_copied": "应用ID已复制到剪贴板",
         "clientId_copied": "客户端ID已复制到剪贴板",
         "clientSecret_copied": "客户端密钥已复制到剪贴板",
