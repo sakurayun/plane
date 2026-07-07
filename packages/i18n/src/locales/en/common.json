@@ -886,5 +886,8 @@
     "error_message": "Could not submit. Please try again.",
     "allow_submission": "Allow requirement submissions",
     "allow_submission_description": "Signed-in visitors can submit work items into this project's intake."
+  },
+  "onboarding": {
+    "no_workspace_no_creation": "You don't seem to have any invites to a workspace and your instance admin has restricted creation of new workspaces. Please ask a workspace owner or admin to invite you first."
   }
 }

@@ -886,5 +886,8 @@
     "error_message": "提交失敗，請重試。",
     "allow_submission": "允許提交需求",
     "allow_submission_description": "已登入的訪客可以向該專案的收件匣提交工作項。"
+  },
+  "onboarding": {
+    "no_workspace_no_creation": "你還沒有任何工作區邀請，且執行個體管理員已停用建立新工作區。請讓工作區擁有者或管理員先邀請你加入。"
   }
 }

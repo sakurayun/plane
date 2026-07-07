@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { observer } from "mobx-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 // plane imports
 import { API_BASE_URL } from "@plane/constants";
@@ -42,7 +42,6 @@ export const NavbarControls = observer(function NavbarControls(props: NavbarCont
   const { t } = useTranslation();
   // router
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   // state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -128,8 +127,17 @@ export const NavbarControls = observer(function NavbarControls(props: NavbarCont
     if (currentUser) {
       setIsCreateModalOpen(true);
     } else {
-      // send anonymous users through sign-in, returning to this board
-      window.location.assign(`${API_BASE_URL}/auth/oidc/?next_path=${encodeURIComponent(pathname)}`);
+      // send anonymous users through sign-in, returning to this exact board.
+      // Use the full browser path (includes the /spaces base) so the web-app
+      // callback redirects back into the space, not the workspace app. Also
+      // stash it so the onboarding screen can bounce non-member users back.
+      const returnPath = window.location.pathname + window.location.search;
+      try {
+        sessionStorage.setItem("plane_post_login_return", returnPath);
+      } catch {
+        // sessionStorage unavailable — next_path still carries the return path
+      }
+      window.location.assign(`${API_BASE_URL}/auth/oidc/?next_path=${encodeURIComponent(returnPath)}`);
     }
   };
 

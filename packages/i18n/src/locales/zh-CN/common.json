@@ -886,5 +886,8 @@
     "error_message": "提交失败，请重试。",
     "allow_submission": "允许提交需求",
     "allow_submission_description": "已登录的访客可以向该项目的收件箱提交工作项。"
+  },
+  "onboarding": {
+    "no_workspace_no_creation": "你还没有任何工作区邀请，且实例管理员已禁止创建新工作区。请让工作区所有者或管理员先邀请你加入。"
   }
 }
