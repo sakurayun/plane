@@ -30,10 +30,8 @@ on:
         required: false
         default: false
         type: boolean
-  push:
-    branches:
-      - preview
-      - canary
+  # push trigger removed on this fork: Docker Hub secrets are not configured;
+  # GHCR builds run via build-ghcr.yml instead
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
