@@ -563,17 +563,21 @@ class DeployBoardViewSet(BaseViewSet):
         )
 
         # Allowing non-members to submit work items requires a linked intake;
-        # auto-provision the project's default intake when the toggle is on
+        # auto-provision the project's default intake when the toggle is on, and
+        # enable the intake view so members can actually see/triage submissions
         if is_intake_enabled and not intake:
+            project = Project.objects.get(pk=project_id, workspace__slug=slug)
             project_intake = Intake.objects.filter(project_id=project_id, is_default=True).first()
             if project_intake is None:
-                project = Project.objects.get(pk=project_id, workspace__slug=slug)
                 project_intake = Intake.objects.create(
                     name=f"{project.name} Intake",
                     project_id=project_id,
                     is_default=True,
                 )
             intake = project_intake.id
+            if not project.intake_view:
+                project.intake_view = True
+                project.save(update_fields=["intake_view", "updated_at"])
 
         project_deploy_board, _ = DeployBoard.objects.get_or_create(
             entity_name="project", entity_identifier=project_id, project_id=project_id
