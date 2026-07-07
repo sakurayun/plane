@@ -800,6 +800,14 @@ class ProjectFeatureAPIEndpoint(BaseAPIView):
 
         if updated_fields:
             project.save(update_fields=updated_fields + ["updated_at"])
+
+            # Enabling intake also requires the default Intake record
+            if project.intake_view and not Intake.objects.filter(project=project, is_default=True).exists():
+                Intake.objects.create(
+                    name=f"{project.name} Intake",
+                    project=project,
+                    is_default=True,
+                )
             model_activity.delay(
                 model_name="project",
                 model_id=str(project.id),
